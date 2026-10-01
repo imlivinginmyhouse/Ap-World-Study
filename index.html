@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AP World Flashcards</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#000000">
+  <link rel="stylesheet" href="styles.css?v=7">
+</head>
+<body>
+  <div class="bg" aria-hidden="true">
+    <div class="bg-glow g1"></div>
+    <div class="bg-glow g2"></div>
+    <div class="bg-grid"></div>
+    <div class="bg-spot"></div>
+    <div class="bg-scan"></div>
+  </div>
+  <svg class="fx-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <filter id="motion-blur" x="-30%" y="-10%" width="160%" height="120%" color-interpolation-filters="sRGB">
+      <feGaussianBlur id="mbNode" in="SourceGraphic" stdDeviation="0 0"/>
+    </filter>
+  </svg>
+  <header class="topbar">
+    <button class="brand" id="homeBtn" type="button">AP World flashcards</button>
+    <button class="topbar-btn" id="settingsBtn" type="button">
+      <span class="status-dot" id="aiDot" aria-hidden="true"></span>
+      <span id="aiLabel">AI grading off</span>
+    </button>
+  </header>
+
+  <main id="app" tabindex="-1"></main>
+
+  <dialog id="settings" aria-labelledby="settingsTitle">
+    <form method="dialog" class="settings-card" id="settingsForm">
+      <h2 id="settingsTitle">AI grading for free response</h2>
+      <p class="muted">
+        With an API key, free-response answers are graded by AI: what you got right,
+        what you missed, and what's wrong. Without a key, answers are checked by matching key words instead.
+      </p>
+
+      <label class="field">
+        <span>Grader</span>
+        <select id="provider">
+          <option value="none">Off (keyword matching)</option>
+          <option value="gemini">Google Gemini (free key available)</option>
+          <option value="claude">Claude (Anthropic API)</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>API key</span>
+        <input id="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key">
+      </label>
+
+      <label class="field">
+        <span>Model</span>
+        <input id="model" type="text" autocomplete="off" spellcheck="false">
+      </label>
+
+      <p class="help" id="keyHelp"></p>
+      <p class="warning">
+        Your key is saved only in this browser on this device. Never put your key in the code you upload to GitHub,
+        and don't enter it on a shared computer.
+      </p>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn-plain" id="clearKey">Remove key</button>
+        <button type="submit" class="btn-primary" id="saveSettings">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="data.js?v=7"></script>
+  <script src="app.js?v=7"></script>
+</body>
+</html>
