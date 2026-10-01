@@ -1,0 +1,913 @@
+(() => {
+  "use strict";
+
+  /* ================= Section settings ================= */
+  const CFG = {
+    review: {
+      blurb: "Big-picture topics for each region",
+      fr: "Explain what you know about this topic.",
+      mcA: "Which of these belongs to this topic?",
+      mcB: "Which topic do these notes describe?",
+      what: "topic"
+    },
+    timeline: {
+      blurb: "When each state formed and fell",
+      fr: "When did this state exist, from formation to collapse?",
+      mcA: "Which dates match this state?",
+      what: "state"
+    },
+    formation: {
+      blurb: "How each state formed",
+      fr: "How did this state form?",
+      mcA: "Which of these is true about how it formed?",
+      mcB: "Whose formation do these notes describe?",
+      what: "state"
+    },
+    expansion: {
+      blurb: "How each state grew",
+      fr: "How did this state expand?",
+      mcA: "Which of these is true about how it expanded?",
+      mcB: "Whose expansion do these notes describe?",
+      what: "state"
+    },
+    collapse: {
+      blurb: "Why each state declined or fell",
+      fr: "Why did this state decline or collapse?",
+      mcA: "Which of these is true about its decline or collapse?",
+      mcB: "Whose decline or collapse do these notes describe?",
+      what: "state"
+    },
+    beliefs: {
+      blurb: "How religion and ideas shaped each state",
+      fr: "How did belief systems shape this state?",
+      mcA: "Which of these is true about its belief systems?",
+      mcB: "Whose belief systems do these notes describe?",
+      what: "state"
+    },
+    legitimacy: {
+      blurb: "How rulers justified their power",
+      fr: "How did this state gain legitimacy?",
+      mcA: "Which of these is true about how it gained legitimacy?",
+      mcB: "Whose legitimacy do these notes describe?",
+      what: "state"
+    }
+  };
+  const FALLBACK_CFG = {
+    blurb: "Your notes",
+    fr: "What do your notes say about this?",
+    mcA: "Which of these belongs to this card?",
+    mcB: "Which card do these notes describe?",
+    what: "card"
+  };
+  const cfgFor = (key) => CFG[key] || FALLBACK_CFG;
+
+  const DEFAULT_MODELS = { claude: "claude-haiku-4-5-20251001", gemini: "gemini-2.5-flash" };
+
+  /* ================= Helpers ================= */
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const app = $("#app");
+
+  const esc = (s) => String(s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+  const shuffle = (arr) => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  function titleCase(str) {
+    return str.split(" ").map((word, i) => {
+      if (word === "&") return word;
+      if (word === "AND" || (word === "OF" && i > 0)) return word.toLowerCase();
+      if (word.length <= 2) return word;
+      return word.split("-").map((p) => p.charAt(0) + p.slice(1).toLowerCase()).join("-");
+    }).join(" ");
+  }
+
+  const GENERIC_NAME_WORDS = new Set([
+    "empire", "kingdom", "kingdoms", "dynasty", "caliphate", "sultanate", "city-states", "states",
+    "state", "the", "of", "and", "great", "khanate", "confederacy", "holy", "roman"
+  ]);
+  function nameWords(title) {
+    return title.toLowerCase()
+      .replace(/[()]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 3 && !GENERIC_NAME_WORDS.has(w));
+  }
+  function mentions(text, words) {
+    const t = text.toLowerCase();
+    return words.some((w) => t.includes(w));
+  }
+  function maskName(text, words) {
+    let out = text;
+    words.forEach((w) => {
+      out = out.replace(new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), "____");
+    });
+    return out;
+  }
+
+  /* ================= Parse notes ================= */
+  function parseNotes(raw) {
+    const sections = [];
+    let sec = null, reg = null, item = null;
+    raw.split("\n").forEach((line) => {
+      const t = line.trim();
+      if (!t) return;
+      if (t.startsWith("# ")) {
+        const [name, key] = t.slice(2).split("|").map((s) => s.trim());
+        sec = { name, key: key || name.toLowerCase().replace(/\W+/g, "-"), regions: [] };
+        sections.push(sec);
+        reg = null; item = null;
+      } else if (t.startsWith("## ") && sec) {
+        reg = { name: titleCase(t.slice(3).trim()), items: [] };
+        sec.regions.push(reg);
+        item = null;
+      } else if (t.startsWith("### ") && reg) {
+        item = { title: t.slice(4).trim(), bullets: [] };
+        reg.items.push(item);
+      } else if (t.startsWith("- ") && sec) {
+        const text = t.slice(2).trim();
+        if (sec.key === "timeline" && reg) {
+          const i = text.indexOf(": ");
+          if (i > 0) reg.items.push({ title: text.slice(0, i), bullets: [text.slice(i + 2)] });
+        } else if (item) {
+          item.bullets.push(text);
+        }
+      }
+    });
+    return sections;
+  }
+
+  const SECTIONS = parseNotes(typeof NOTES === "string" ? NOTES : "");
+  const ALL_CARDS = [];
+  const CARDS_BY_SECTION = {};
+  SECTIONS.forEach((sec) => {
+    CARDS_BY_SECTION[sec.key] = [];
+    sec.regions.forEach((reg) => {
+      reg.items.forEach((it, idx) => {
+        if (!it.bullets.length) return;
+        const card = {
+          id: `${sec.key}::${reg.name}::${it.title}::${idx}`,
+          secKey: sec.key,
+          secName: sec.name,
+          region: reg.name,
+          title: it.title,
+          bullets: it.bullets
+        };
+        CARDS_BY_SECTION[sec.key].push(card);
+        ALL_CARDS.push(card);
+      });
+    });
+  });
+
+  const DECKS = SECTIONS.map((sec) => ({
+    key: sec.key,
+    name: sec.name,
+    blurb: cfgFor(sec.key).blurb,
+    cards: CARDS_BY_SECTION[sec.key]
+  })).filter((d) => d.cards.length);
+  DECKS.push({
+    key: "__all",
+    name: "Everything mixed",
+    blurb: "Every card from every deck",
+    cards: ALL_CARDS,
+    mixed: true
+  });
+
+  /* ================= Settings ================= */
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } },
+    del(k) { try { localStorage.removeItem(k); } catch { /* storage unavailable */ } }
+  };
+  function getSettings() {
+    const provider = store.get("apw.provider", "none");
+    return {
+      provider,
+      key: store.get("apw.key", ""),
+      model: store.get("apw.model", DEFAULT_MODELS[provider] || "")
+    };
+  }
+  const aiReady = () => { const s = getSettings(); return s.provider !== "none" && !!s.key; };
+
+  function refreshAiBadge() {
+    const s = getSettings();
+    const on = aiReady();
+    $("#aiDot").classList.toggle("on", on);
+    $("#aiLabel").textContent = on ? `AI grading: ${s.provider === "claude" ? "Claude" : "Gemini"}` : "AI grading off";
+  }
+
+  const dlg = $("#settings");
+  function updateKeyHelp() {
+    const p = $("#provider").value;
+    const help = $("#keyHelp");
+    const model = $("#model");
+    if (p === "gemini") {
+      help.innerHTML = 'Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>. If the model name stops working, check Google\'s model list for a current one.';
+    } else if (p === "claude") {
+      help.innerHTML = 'Create a key at <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com</a>. The Claude API is paid per use; grading one answer costs a fraction of a cent.';
+    } else {
+      help.textContent = "Keyword matching checks which of your notes your answer covers. It can't tell when a fact is wrong.";
+    }
+    const disabled = p === "none";
+    $("#apiKey").disabled = disabled;
+    model.disabled = disabled;
+    model.placeholder = DEFAULT_MODELS[p] || "";
+  }
+  function openSettings() {
+    const s = getSettings();
+    $("#provider").value = s.provider;
+    $("#apiKey").value = s.key;
+    $("#model").value = s.provider === "none" ? "" : s.model;
+    updateKeyHelp();
+    dlg.showModal();
+  }
+  $("#provider").addEventListener("change", () => {
+    const p = $("#provider").value;
+    $("#model").value = DEFAULT_MODELS[p] || "";
+    updateKeyHelp();
+  });
+  $("#settingsForm").addEventListener("submit", () => {
+    const p = $("#provider").value;
+    store.set("apw.provider", p);
+    store.set("apw.key", $("#apiKey").value.trim());
+    store.set("apw.model", $("#model").value.trim() || DEFAULT_MODELS[p] || "");
+    refreshAiBadge();
+    if (state.view === "home") renderHome();
+  });
+  $("#clearKey").addEventListener("click", () => {
+    store.del("apw.key");
+    store.set("apw.provider", "none");
+    $("#apiKey").value = "";
+    $("#provider").value = "none";
+    updateKeyHelp();
+    refreshAiBadge();
+  });
+  $("#settingsBtn").addEventListener("click", openSettings);
+  $("#homeBtn").addEventListener("click", () => renderHome());
+
+  /* ================= State ================= */
+  const state = {
+    view: "home",
+    deck: null,
+    session: null
+  };
+
+  function focusMain() { app.focus({ preventScroll: true }); window.scrollTo({ top: 0 }); }
+
+  /* ================= Home ================= */
+  function renderHome() {
+    state.view = "home";
+    state.session = null;
+    const note = aiReady() ? "" : `
+      <div class="ai-note">
+        <p>Free-response answers are checked by keyword matching right now. Add an API key to get AI feedback on what you missed and what's wrong.</p>
+        <button class="btn-on-desk" type="button" data-action="settings">Set up AI grading</button>
+      </div>`;
+    app.innerHTML = `
+      <section class="home-head">
+        <h1>Pick a deck and start studying.</h1>
+        <p>Every card comes from your AP World binder. Choose in-order or shuffled, then answer by multiple choice or in your own words.</p>
+      </section>
+      ${note}
+      <div class="deck-grid">
+        ${DECKS.map((d) => `
+          <button class="deck${d.mixed ? " mixed" : ""}" type="button" data-deck="${esc(d.key)}">
+            <span class="deck-face">
+              <span class="deck-title">${esc(d.name)}</span>
+              <span class="deck-lines">
+                <span class="deck-blurb">${esc(d.blurb)}</span>
+                <span class="deck-count">${d.cards.length} cards</span>
+              </span>
+            </span>
+          </button>`).join("")}
+      </div>`;
+    app.querySelectorAll("[data-deck]").forEach((b) =>
+      b.addEventListener("click", () => renderSetup(DECKS.find((d) => d.key === b.dataset.deck))));
+    const s = app.querySelector('[data-action="settings"]');
+    if (s) s.addEventListener("click", openSettings);
+    focusMain();
+  }
+
+  /* ================= Setup ================= */
+  function renderSetup(deck) {
+    state.view = "setup";
+    state.deck = deck;
+    const regions = [...new Set(deck.cards.map((c) => c.region))];
+    const lastOrder = store.get("apw.order", "ordered");
+    const lastMode = store.get("apw.mode", "mc");
+    app.innerHTML = `
+      <button class="back-link" type="button" data-action="home">Back to decks</button>
+      <section class="sheet">
+        <div class="sheet-head">
+          <p class="kicker">${deck.cards.length} cards</p>
+          <h1 class="sheet-title">${esc(deck.name)}</h1>
+        </div>
+        <form class="sheet-body" id="setupForm">
+          <label class="field">
+            <span>Region</span>
+            <select name="region">
+              <option value="__all">All regions (${deck.cards.length} cards)</option>
+              ${regions.map((r) => `<option value="${esc(r)}">${esc(r)} (${deck.cards.filter((c) => c.region === r).length} cards)</option>`).join("")}
+            </select>
+          </label>
+
+          <fieldset class="setup-group">
+            <legend>Order</legend>
+            <div class="segmented">
+              <label><input type="radio" name="order" value="ordered" ${lastOrder === "ordered" ? "checked" : ""}>
+                <span class="seg"><strong>In order</strong><small>Same order as your binder</small></span></label>
+              <label><input type="radio" name="order" value="shuffled" ${lastOrder === "shuffled" ? "checked" : ""}>
+                <span class="seg"><strong>Shuffled</strong><small>Random order every time</small></span></label>
+            </div>
+          </fieldset>
+
+          <fieldset class="setup-group">
+            <legend>Answer style</legend>
+            <div class="segmented">
+              <label><input type="radio" name="mode" value="mc" ${lastMode === "mc" ? "checked" : ""}>
+                <span class="seg"><strong>Multiple choice</strong><small>See why every option is right or wrong</small></span></label>
+              <label><input type="radio" name="mode" value="fr" ${lastMode === "fr" ? "checked" : ""}>
+                <span class="seg"><strong>Free response</strong><small>${aiReady() ? "Graded by AI against your notes" : "Checked by keyword matching"}</small></span></label>
+            </div>
+          </fieldset>
+
+          <div class="setup-actions">
+            <button class="btn-primary" type="submit">Start studying</button>
+          </div>
+        </form>
+      </section>`;
+    app.querySelector('[data-action="home"]').addEventListener("click", renderHome);
+    $("#setupForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const region = f.get("region");
+      const order = f.get("order");
+      const mode = f.get("mode");
+      store.set("apw.order", order);
+      store.set("apw.mode", mode);
+      let cards = deck.cards.filter((c) => region === "__all" || c.region === region);
+      if (order === "shuffled") cards = shuffle(cards);
+      startSession({ deck, cards, order, mode, regionLabel: region === "__all" ? "All regions" : region });
+    });
+    focusMain();
+  }
+
+  /* ================= Session ================= */
+  function startSession(opts) {
+    state.view = "study";
+    state.session = {
+      ...opts,
+      idx: 0,
+      results: [],     // { card, correct, score }
+      current: null    // per-card UI state
+    };
+    renderCard();
+  }
+
+  function renderCard() {
+    const s = state.session;
+    if (s.idx >= s.cards.length) return renderSummary();
+    const card = s.cards[s.idx];
+    s.current = { card, answered: false };
+    if (s.mode === "mc") s.current.mc = buildMC(card);
+
+    const cfg = cfgFor(card.secKey);
+    const hideTitle = s.mode === "mc" && s.current.mc.kind === "identify";
+    const pct = Math.round((s.idx / s.cards.length) * 100);
+
+    app.innerHTML = `
+      <div class="study-bar">
+        <button class="back-link" type="button" data-action="quit">End session</button>
+        <span>Card ${s.idx + 1} of ${s.cards.length}</span>
+      </div>
+      <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="${s.cards.length}" aria-valuenow="${s.idx}" aria-label="Progress"><span style="width:${pct}%"></span></div>
+      <section class="sheet" aria-live="polite">
+        <div class="sheet-head">
+          <p class="kicker">${esc(card.secName)}, ${esc(card.region)}</p>
+          <h1 class="sheet-title">${hideTitle ? `Mystery ${esc(cfg.what)}` : esc(card.title)}</h1>
+        </div>
+        <div class="sheet-body" id="cardBody"></div>
+      </section>`;
+    app.querySelector('[data-action="quit"]').addEventListener("click", () => {
+      if (s.results.length) renderSummary(); else renderSetup(s.deck);
+    });
+
+    if (s.mode === "mc") renderMC(); else renderFR();
+    focusMain();
+  }
+
+  function recordAndNext(result) {
+    const s = state.session;
+    s.results.push(result);
+  }
+
+  function nextCard() {
+    state.session.idx += 1;
+    renderCard();
+  }
+
+  /* ================= Multiple choice ================= */
+  function distractorCards(card, n) {
+    const pool = (CARDS_BY_SECTION[card.secKey] || []).filter((c) => c.id !== card.id && c.title !== card.title);
+    const same = shuffle(pool.filter((c) => c.region === card.region));
+    const other = shuffle(pool.filter((c) => c.region !== card.region));
+    const out = [];
+    const seen = new Set([card.title]);
+    for (const c of [...same, ...other]) {
+      if (seen.has(c.title)) continue;
+      seen.add(c.title);
+      out.push(c);
+      if (out.length >= n) break;
+    }
+    return out;
+  }
+
+  function buildMC(card) {
+    const cfg = cfgFor(card.secKey);
+    const deckLabel = card.secName.toLowerCase();
+
+    if (card.secKey === "timeline") {
+      const answer = card.bullets[0];
+      const others = distractorCards(card, 6).filter((c) => c.bullets[0] !== answer);
+      const used = new Set([answer]);
+      const wrong = [];
+      for (const c of others) {
+        if (used.has(c.bullets[0])) continue;
+        used.add(c.bullets[0]);
+        wrong.push(c);
+        if (wrong.length === 3) break;
+      }
+      const options = [
+        { text: answer, correct: true, explain: `Correct. ${card.title} existed ${answer}.` },
+        ...wrong.map((c) => ({ text: c.bullets[0], correct: false, explain: `These are the dates for ${c.title} (${c.region}). ${card.title} existed ${answer}.` }))
+      ];
+      return { kind: "fact", prompt: cfg.mcA, options: shuffle(options) };
+    }
+
+    const words = nameWords(card.title);
+    const canIdentify = (CARDS_BY_SECTION[card.secKey] || []).length >= 4;
+
+    if (canIdentify && Math.random() < 0.5) {
+      // "Which state/topic do these notes describe?"
+      let clues = card.bullets.filter((b) => !mentions(b, words));
+      if (clues.length < 2) clues = card.bullets.map((b) => maskName(b, words));
+      clues = shuffle(clues).slice(0, 3);
+      const others = distractorCards(card, 3);
+      const options = [
+        { text: card.title, correct: true, explain: `Correct. These are from the ${deckLabel} notes for ${card.title}.` },
+        ...others.map((c) => ({
+          text: c.title,
+          correct: false,
+          explain: `Not ${c.title}. Its ${deckLabel} notes say: ${c.bullets.slice(0, 2).join("; ")}.`
+        }))
+      ];
+      return { kind: "identify", prompt: cfg.mcB, clues, options: shuffle(options) };
+    }
+
+    // "Which of these is true about ___?"
+    const right = pick(card.bullets);
+    const others = distractorCards(card, 8);
+    const wrong = [];
+    const usedText = new Set([right]);
+    for (const c of others) {
+      const candidates = shuffle(c.bullets.filter((b) => !usedText.has(b) && !mentions(b, words)));
+      if (!candidates.length) continue;
+      usedText.add(candidates[0]);
+      wrong.push({ card: c, text: candidates[0] });
+      if (wrong.length === 3) break;
+    }
+    const options = [
+      { text: right, correct: true, explain: `Correct. This is part of the ${deckLabel} notes for ${card.title}.` },
+      ...wrong.map((w) => ({
+        text: w.text,
+        correct: false,
+        explain: `This is from the ${deckLabel} notes for ${w.card.title} (${w.card.region}), not ${card.title}.`
+      }))
+    ];
+    return { kind: "fact", prompt: cfg.mcA, options: shuffle(options) };
+  }
+
+  function renderMC() {
+    const s = state.session;
+    const { card, mc } = s.current;
+    const body = $("#cardBody");
+    body.innerHTML = `
+      <p class="prompt">${esc(mc.prompt)}</p>
+      ${mc.kind === "identify" ? `<ul class="clues">${mc.clues.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}
+      <ul class="options">
+        ${mc.options.map((o, i) => `
+          <li>
+            <button class="option" type="button" data-i="${i}" aria-expanded="false">
+              <span class="letter" aria-hidden="true">${"ABCD"[i]}</span>
+              <span class="option-text">${esc(o.text)}<span class="option-tag"></span></span>
+              <span class="explain" hidden>${esc(o.explain)}</span>
+            </button>
+          </li>`).join("")}
+      </ul>
+      <div id="mcAfter"></div>`;
+
+    body.querySelectorAll(".option").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const i = Number(btn.dataset.i);
+        if (!s.current.answered) chooseMC(i);
+        else toggleExplain(btn);
+      });
+    });
+  }
+
+  function toggleExplain(btn, force) {
+    const ex = btn.querySelector(".explain");
+    const open = force !== undefined ? force : ex.hidden;
+    ex.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+  }
+
+  function chooseMC(i) {
+    const s = state.session;
+    const { card, mc } = s.current;
+    s.current.answered = true;
+    const chosen = mc.options[i];
+    const buttons = [...document.querySelectorAll(".option")];
+
+    buttons.forEach((btn, j) => {
+      const o = mc.options[j];
+      const tag = btn.querySelector(".option-tag");
+      if (o.correct) { btn.classList.add("is-correct"); tag.textContent = " Correct answer"; }
+      if (j === i && !o.correct) { btn.classList.add("is-wrong"); tag.textContent = " Your answer"; }
+      if (j === i && o.correct) tag.textContent = " Your answer, correct";
+      if (o.correct || j === i) toggleExplain(btn, true);
+    });
+
+    recordAndNext({ card, correct: chosen.correct, score: chosen.correct ? 100 : 0 });
+
+    $("#mcAfter").innerHTML = `
+      <p class="explain-toggle-hint" style="margin-top:12px">Tap any other answer to see why it's right or wrong.</p>
+      ${notesBlock(card)}
+      <div class="next-row">
+        <button class="btn-primary" type="button" id="nextBtn">${isLast() ? "See results" : "Next card"}</button>
+        <span class="kbd-hint">or press Enter</span>
+      </div>`;
+    $("#nextBtn").addEventListener("click", nextCard);
+    $("#nextBtn").focus({ preventScroll: true });
+  }
+
+  const isLast = () => state.session.idx >= state.session.cards.length - 1;
+
+  function notesBlock(card) {
+    return `
+      <div class="notes-block">
+        <h3>Your notes: ${esc(card.title)}</h3>
+        <ul>${card.bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>
+      </div>`;
+  }
+
+  /* ================= Free response ================= */
+  function renderFR() {
+    const s = state.session;
+    const { card } = s.current;
+    const cfg = cfgFor(card.secKey);
+    const body = $("#cardBody");
+    body.innerHTML = `
+      <label class="prompt" for="answer">${esc(cfg.fr)}</label>
+      <textarea id="answer" class="answer-box" rows="6" placeholder="Write your answer in your own words..."></textarea>
+      <p class="answer-hint">Press Ctrl + Enter (or Cmd + Enter) to check.</p>
+      <div class="row">
+        <button class="btn-primary" type="button" id="checkBtn">Check answer</button>
+        <button class="btn-plain" type="button" id="skipBtn">I don't know</button>
+      </div>
+      <div id="frAfter"></div>`;
+    const ta = $("#answer");
+    ta.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); checkFR(); }
+    });
+    $("#checkBtn").addEventListener("click", checkFR);
+    $("#skipBtn").addEventListener("click", () => {
+      if (s.current.answered) return;
+      s.current.answered = true;
+      ta.disabled = true;
+      $("#checkBtn").disabled = true;
+      $("#skipBtn").disabled = true;
+      recordAndNext({ card, correct: false, score: 0 });
+      $("#frAfter").innerHTML = `
+        <div class="result">
+          <p class="verdict bad">Study this one</p>
+          ${notesBlock(card)}
+          ${nextRow()}
+        </div>`;
+      wireNext();
+    });
+    setTimeout(() => ta.focus({ preventScroll: true }), 30);
+  }
+
+  function nextRow() {
+    return `
+      <div class="next-row">
+        <button class="btn-primary" type="button" id="nextBtn">${isLast() ? "See results" : "Next card"}</button>
+        <span class="kbd-hint">or press Enter</span>
+      </div>`;
+  }
+  function wireNext() {
+    $("#nextBtn").addEventListener("click", nextCard);
+    $("#nextBtn").focus({ preventScroll: true });
+  }
+
+  async function checkFR() {
+    const s = state.session;
+    if (s.current.answered || s.current.checking) return;
+    const { card } = s.current;
+    const ta = $("#answer");
+    const answer = ta.value.trim();
+    const after = $("#frAfter");
+    if (!answer) {
+      after.innerHTML = `<p class="error">Write an answer first, or choose "I don't know" to see the notes.</p>`;
+      ta.focus();
+      return;
+    }
+    s.current.checking = true;
+    ta.disabled = true;
+    $("#checkBtn").disabled = true;
+    $("#skipBtn").disabled = true;
+
+    let grade = null;
+    let errorMsg = "";
+    if (aiReady()) {
+      after.innerHTML = `<div class="checking"><span class="pencil" aria-hidden="true"></span><span>Checking your answer against your notes...</span></div>`;
+      try {
+        grade = await aiGrade(card, answer);
+        grade.source = "ai";
+      } catch (err) {
+        errorMsg = `AI grading didn't work (${err.message}). Showing a keyword check instead. Check your key and model in AI grading settings.`;
+      }
+    }
+    if (!grade) {
+      grade = localGrade(card, answer);
+      grade.source = "local";
+    }
+
+    s.current.checking = false;
+    s.current.answered = true;
+    const correct = grade.score >= 70;
+    s.current.result = { card, correct, score: grade.score };
+    recordAndNext(s.current.result);
+    renderGrade(grade, errorMsg);
+  }
+
+  function renderGrade(g, errorMsg) {
+    const { card } = state.session.current;
+    const cls = g.score >= 70 ? "good" : g.score >= 40 ? "mid" : "bad";
+    const label = g.score >= 70 ? "Got it" : g.score >= 40 ? "Partly there" : "Not yet";
+    const list = (title, items, klass) => items && items.length ? `
+      <div class="feedback-block ${klass}">
+        <h3>${title}</h3>
+        <ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+      </div>` : "";
+
+    $("#frAfter").innerHTML = `
+      ${errorMsg ? `<p class="error">${esc(errorMsg)}</p>` : ""}
+      <div class="result">
+        <p class="verdict ${cls}">${label}: ${g.score}%</p>
+        <p class="grader-note">${g.source === "ai"
+          ? "Graded by AI against your notes."
+          : "Checked by keyword matching. It can tell which notes you covered, but not whether a fact is wrong. Turn on AI grading for that."}</p>
+        ${list("What you got right", g.right, "fb-right")}
+        ${list("What you missed", g.missed, "fb-missed")}
+        ${list("What's wrong", g.wrong, "fb-wrong")}
+        ${g.tip ? `<p class="tip">${esc(g.tip)}</p>` : ""}
+        ${notesBlock(card)}
+        <div class="next-row">
+          <button class="btn-primary" type="button" id="nextBtn">${isLast() ? "See results" : "Next card"}</button>
+          <button class="btn-plain" type="button" id="overrideBtn">${g.score >= 70 ? "Count it as wrong" : "Count it as right"}</button>
+          <span class="kbd-hint">Enter for next</span>
+        </div>
+      </div>`;
+    $("#overrideBtn").addEventListener("click", () => {
+      const r = state.session.current.result;
+      r.correct = !r.correct;
+      r.score = r.correct ? 100 : 0;
+      $("#overrideBtn").textContent = r.correct ? "Counted as right" : "Counted as wrong";
+      $("#overrideBtn").disabled = true;
+    });
+    wireNext();
+  }
+
+  /* ---- Keyword grader (no API key) ---- */
+  const STOP = new Set(("about above after again against also among another because been before being below between both " +
+    "but came come could each from have having here into itself just like made make many more most much must " +
+    "near only other over same should since some such than that their them then there these they this those " +
+    "through under until upon very were what when where which while with within would your later early").split(" "));
+
+  function keywords(text) {
+    return [...new Set(text.toLowerCase()
+      .replace(/[^a-z0-9\u00c0-\u024f\s'-]/g, " ")
+      .split(/\s+/)
+      .map((w) => w.replace(/^'+|'+$/g, ""))
+      .filter((w) => (w.length >= 4 && !STOP.has(w)) || /^\d{3,4}$/.test(w)))];
+  }
+  const stem = (w) => w.slice(0, 5);
+
+  function localGrade(card, answer) {
+    if (card.secKey === "timeline") return localGradeTimeline(card, answer);
+    const ansStems = new Set(keywords(answer).map(stem));
+    const titleStems = new Set(keywords(card.title).map(stem));
+    const right = [], missed = [];
+    card.bullets.forEach((b) => {
+      const kws = keywords(b);
+      if (!kws.length) return;
+      const hits = kws.filter((k) => ansStems.has(stem(k))).length;
+      // Proper nouns (names, places) are strong evidence the student covered this note
+      const proper = (b.match(/(?:^|\s)([A-Z\u00c0-\u00de][\w\u00c0-\u024f'-]{2,})/g) || [])
+        .slice(1)
+        .map((w) => stem(w.trim().toLowerCase()))
+        .filter((w) => !titleStems.has(w) && !STOP.has(w));
+      const properHit = proper.some((p) => ansStems.has(p));
+      const covered = hits / kws.length >= 0.4 || hits >= 3 || properHit;
+      (covered ? right : missed).push(b);
+    });
+    const total = right.length + missed.length || 1;
+    const score = Math.round((right.length / total) * 100);
+    return {
+      score,
+      right,
+      missed,
+      wrong: [],
+      tip: missed.length ? "Try to include the specific names, places, and causes from the notes you missed." : "Nice coverage of your notes."
+    };
+  }
+
+  function localGradeTimeline(card, answer) {
+    const refYears = (card.bullets[0].match(/\d{3,4}/g) || []).map(Number);
+    const ansYears = (answer.match(/\d{3,4}/g) || []).map(Number);
+    const hit = refYears.filter((y) => ansYears.some((a) => Math.abs(a - y) <= 25));
+    const present = /present/i.test(card.bullets[0]) && /present|today|still/i.test(answer);
+    const total = refYears.length + (/present/i.test(card.bullets[0]) ? 1 : 0) || 1;
+    const score = Math.round(((hit.length + (present ? 1 : 0)) / total) * 100);
+    return {
+      score,
+      right: hit.length ? [`Your dates match: ${hit.join(", ")}`] : [],
+      missed: score < 100 ? [`The notes say: ${card.bullets[0]}`] : [],
+      wrong: [],
+      tip: "Dates within about 25 years count as a match."
+    };
+  }
+
+  /* ---- AI grader ---- */
+  function gradingPrompt(card, answer) {
+    const cfg = cfgFor(card.secKey);
+    const system = [
+      "You are an AP World History teacher grading a student's flashcard answer.",
+      "Grade ONLY against the reference notes provided. Treat the reference notes as the answer key.",
+      "Give credit for paraphrases and for ideas that mean the same thing as a note, even with different wording.",
+      "A strong answer does not need every note, but it should capture the main ideas. Score 0-100 for how well it covers the key notes accurately.",
+      "List as 'wrong' only statements in the student's answer that contradict the notes or are historically incorrect, and explain the correction briefly.",
+      "List as 'missed' the important notes the student left out, written as short phrases.",
+      "List as 'right' the specific points the student got correct, written as short phrases.",
+      "Keep every item short and written to the student in plain language.",
+      'Respond with JSON only, no markdown fences, in exactly this shape: {"score": number, "right": [string], "missed": [string], "wrong": [string], "tip": string}'
+    ].join("\n");
+    const user = [
+      `Deck: ${card.secName}`,
+      `Card: ${card.title} (${card.region})`,
+      `Question: ${cfg.fr}`,
+      "",
+      "Reference notes:",
+      ...card.bullets.map((b) => `- ${b}`),
+      "",
+      "Student answer:",
+      answer
+    ].join("\n");
+    return { system, user };
+  }
+
+  async function aiGrade(card, answer) {
+    const s = getSettings();
+    const { system, user } = gradingPrompt(card, answer);
+    let text = "";
+
+    if (s.provider === "claude") {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": s.key,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
+        },
+        body: JSON.stringify({
+          model: s.model || DEFAULT_MODELS.claude,
+          max_tokens: 800,
+          system,
+          messages: [{ role: "user", content: user }]
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data.error && data.error.message) || `HTTP ${res.status}`);
+      text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n");
+    } else if (s.provider === "gemini") {
+      const model = encodeURIComponent(s.model || DEFAULT_MODELS.gemini);
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(s.key)}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: "user", parts: [{ text: user }] }],
+          generationConfig: { temperature: 0.2, responseMimeType: "application/json" }
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data.error && data.error.message) || `HTTP ${res.status}`);
+      const parts = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+      text = (parts || []).map((p) => p.text || "").join("\n");
+    } else {
+      throw new Error("no grader selected");
+    }
+
+    const cleaned = text.replace(/```json|```/g, "").trim();
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start < 0 || end < 0) throw new Error("the grader's reply wasn't readable");
+    const g = JSON.parse(cleaned.slice(start, end + 1));
+    const arr = (x) => Array.isArray(x) ? x.map(String).filter(Boolean) : [];
+    return {
+      score: Math.max(0, Math.min(100, Math.round(Number(g.score) || 0))),
+      right: arr(g.right),
+      missed: arr(g.missed),
+      wrong: arr(g.wrong),
+      tip: typeof g.tip === "string" ? g.tip : ""
+    };
+  }
+
+  /* ================= Summary ================= */
+  function renderSummary() {
+    const s = state.session;
+    state.view = "summary";
+    const n = s.results.length;
+    const right = s.results.filter((r) => r.correct).length;
+    const missed = s.results.filter((r) => !r.correct);
+    const avg = n ? Math.round(s.results.reduce((a, r) => a + r.score, 0) / n) : 0;
+    const scoreText = s.mode === "mc"
+      ? `${right} of ${n} right`
+      : `${right} of ${n} passed, ${avg}% average`;
+
+    app.innerHTML = `
+      <section class="sheet">
+        <div class="sheet-head">
+          <p class="kicker">${esc(s.deck.name)}, ${esc(s.regionLabel)}, ${s.mode === "mc" ? "multiple choice" : "free response"}</p>
+          <h1 class="score-line">${n ? scoreText : "No cards answered"}</h1>
+        </div>
+        <div class="sheet-body">
+          ${missed.length ? `
+            <h2 class="prompt">Cards to review</h2>
+            <ul class="missed-list">${missed.map((r) => `<li><strong>${esc(r.card.title)}</strong> (${esc(r.card.secName)}, ${esc(r.card.region)})</li>`).join("")}</ul>
+          ` : n ? `<p class="prompt">You got every card. Try the other answer style or a shuffled run next.</p>` : ""}
+          <div class="next-row">
+            ${missed.length ? `<button class="btn-primary" type="button" id="retryMissed">Study missed cards</button>` : ""}
+            <button class="${missed.length ? "btn-plain" : "btn-primary"}" type="button" id="again">Study this deck again</button>
+            <button class="btn-plain" type="button" id="toHome">Back to decks</button>
+          </div>
+        </div>
+      </section>`;
+
+    const retry = $("#retryMissed");
+    if (retry) retry.addEventListener("click", () => {
+      const cards = s.order === "shuffled" ? shuffle(missed.map((r) => r.card)) : missed.map((r) => r.card);
+      startSession({ deck: s.deck, cards, order: s.order, mode: s.mode, regionLabel: "Missed cards" });
+    });
+    $("#again").addEventListener("click", () => renderSetup(s.deck));
+    $("#toHome").addEventListener("click", renderHome);
+    focusMain();
+  }
+
+  /* ================= Keyboard ================= */
+  document.addEventListener("keydown", (e) => {
+    if (state.view !== "study" || dlg.open) return;
+    const s = state.session;
+    if (!s || !s.current) return;
+    const inText = e.target && (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT");
+    if (s.mode === "mc" && !s.current.answered && !inText && /^[1-4]$/.test(e.key)) {
+      const i = Number(e.key) - 1;
+      if (s.current.mc.options[i]) { e.preventDefault(); chooseMC(i); }
+      return;
+    }
+    if (s.current.answered && e.key === "Enter" && !inText) {
+      const active = document.activeElement;
+      if (active && active.tagName === "BUTTON") return;
+      e.preventDefault();
+      nextCard();
+    }
+  });
+
+  /* ================= Start ================= */
+  refreshAiBadge();
+  if (!ALL_CARDS.length) {
+    app.innerHTML = `<section class="sheet"><div class="sheet-body"><p class="prompt">No cards found. Check that data.js is in the same folder as index.html.</p></div></section>`;
+  } else {
+    renderHome();
+  }
+})();
