@@ -1,6 +1,6 @@
 # AP World Flashcards
 
-Flashcard decks built from the "AP WORLD FORMULA" binder: Quick review, Timeline, Formation, Expansion, Collapse, Belief systems, Legitimacy, plus an "Everything mixed" deck.
+Flashcard decks built from the "AP WORLD FORMULA" binder: Quick review (fill in the blank), Timeline, Formation, Expansion, Collapse, Belief systems, Legitimacy, Centralization, plus an "Everything mixed" deck.
 
 Each deck can be studied in order or shuffled, filtered by region, and answered two ways:
 
@@ -37,4 +37,8 @@ All the notes live in `data.js`. The format is simple:
 
 For the Timeline deck, write `- Name: dates` directly under a region. Save, re-upload `data.js` to GitHub, and the site updates.
 
-To add a Centralization deck, add a section like `# Centralization | centralization` with the same layout. It will work automatically; the question will read "What do your notes say about this?" unless you add matching prompts to the `CFG` object near the top of `app.js`.
+In the Quick review section, put `[[double brackets]]` around the key term in a note to make it a fill-in-the-blank card. Notes without brackets still show up in your notes but don't become cards.
+
+In the Centralization section, write the label after the name: `### Inca Empire | Highly centralized`. The label becomes the answer to "How was political power organized in this state?"
+
+To add a brand-new deck, add a section like `# Economy | economy` with the same layout. It works automatically; add matching question wording to the `CFG` object near the top of `app.js` if you want custom prompts.

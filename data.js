@@ -5,7 +5,9 @@
   # Section name | key        -> starts a deck (keys: review, timeline, formation, expansion, collapse, beliefs, legitimacy, or any new key)
   ## REGION                   -> region heading
   ### Item name               -> one flashcard (a state or topic)
+  ### Item name | label       -> (Centralization) the label is the centralized/decentralized answer
   - bullet                    -> one note on that card
+  [[term]]                    -> (Quick review) marks the term to blank out; each marked note becomes a fill-in-the-blank card
   In the timeline section, write "- Name: dates" directly under a region.
 */
 const NOTES = `
@@ -15,110 +17,110 @@ const NOTES = `
 
 ### Caste System & Social Organization
 - Caste system adapted continuously to social, economic, and regional changes
-- Incorporated foreign migrants (Muslim merchants, Turkish invaders)
-- Organized trade through subcastes (jati), which functioned as craft and merchant guilds
-- Postclassical era: caste distinctions expanded securely into southern India via merchant networks and temple education
+- Incorporated foreign migrants ([[Muslim merchants]], Turkish invaders)
+- Organized trade through subcastes ([[jati]]), which functioned as craft and merchant guilds
+- Postclassical era: caste distinctions expanded securely into [[southern India]] via merchant networks and temple education
 
 ### Religious Transformations
-- Popular support shifted away from Jainism and Buddhism toward devotional Hinduism
-- Devotional Hinduism centered on personal union with deities like Vishnu and Shiva
-- Shankara emphasized logical reasoning; Ramanuja prioritized personal salvation
-- Islam gained ground through lower-caste conversions, Sufi mystics, and the Bhakti movement
-- Bhakti teachers like Guru Kabir sought to bridge Hindu and Islamic devotional traditions
+- Popular support shifted away from Jainism and Buddhism toward [[devotional Hinduism]]
+- Devotional Hinduism centered on personal union with deities like [[Vishnu and Shiva]]
+- [[Shankara]] emphasized logical reasoning; Ramanuja prioritized personal salvation
+- Islam gained ground through lower-caste conversions, [[Sufi]] mystics, and the Bhakti movement
+- Bhakti teachers like [[Guru Kabir]] sought to bridge Hindu and Islamic devotional traditions
 
 ### Southeast Asian States
-- Ruling elites adopted Indian statecraft (rajah title, Sanskrit writing)
-- Sponsored Hinduism and Buddhism to reinforce monarchical legitimacy
-- Trade-funded land-based agrarian kingdoms: Funan, Khmer/Angkor
-- Maritime island empires: Srivijaya, Singosari, Majapahit
+- Ruling elites adopted Indian statecraft ([[rajah]] title, Sanskrit writing)
+- Sponsored [[Hinduism and Buddhism]] to reinforce monarchical legitimacy
+- Trade-funded land-based agrarian kingdoms: Funan, [[Khmer/Angkor]]
+- Maritime island empires: [[Srivijaya]], Singosari, Majapahit
 
 ## THE AMERICAS & OCEANIA
 
 ### Mesoamerica
-- Militarized states like the Toltecs at Tula arose after the fall of Teotihuacan
-- Mexica (Aztecs) settled Tenochtitlan on Lake Texcoco
-- Built productive chinampa raised-field agricultural plots
-- Aztec Empire expanded via a Triple Alliance
-- Extracted heavy tribute from nearly 500 subject territories
-- Practiced bloodletting and human sacrifice to sustain Huitzilopochtli and cosmic order
+- Militarized states like the Toltecs at Tula arose after the fall of [[Teotihuacan]]
+- Mexica (Aztecs) settled Tenochtitlan on [[Lake Texcoco]]
+- Built productive [[chinampa]] raised-field agricultural plots
+- Aztec Empire expanded via a [[Triple Alliance]]
+- Extracted heavy tribute from nearly [[500]] subject territories
+- Practiced bloodletting and human sacrifice to sustain [[Huitzilopochtli]] and cosmic order
 
 ### North America
-- Southwestern groups (Pueblo and Navajo) built stone/adobe settlements
-- Supported by irrigated agriculture
-- Eastern Woodland communities built palisaded villages, such as the five-nation Iroquois confederacy
-- Mound-building societies established Cahokia near the Mississippi River as a major regional trade hub
+- Southwestern groups ([[Pueblo]] and Navajo) built stone/adobe settlements
+- Supported by [[irrigated]] agriculture
+- Eastern Woodland communities built palisaded villages, such as the five-nation [[Iroquois]] confederacy
+- Mound-building societies established [[Cahokia]] near the Mississippi River as a major regional trade hub
 
 ### South America
-- Highland Chucuito: terraced potato farming, llama and alpaca herding
-- Coastal Chimu: irrigation networks, urban capital of Chanchan
-- Inca Empire expanded rapidly under Pachacuti
-- Unified 11.5 million subjects through a centralized bureaucracy
-- Extensive mountain road networks and state storehouses
-- Recorded statistical data using knotted quipu cords
+- Highland [[Chucuito]]: terraced potato farming, llama and alpaca herding
+- Coastal Chimu: irrigation networks, urban capital of [[Chanchan]]
+- Inca Empire expanded rapidly under [[Pachacuti]]
+- Unified [[11.5 million]] subjects through a centralized bureaucracy
+- Extensive mountain road networks and state [[storehouses]]
+- Recorded statistical data using knotted [[quipu]] cords
 
 ### Oceania
-- Australian aboriginal peoples maintained nomadic foraging networks and localized spiritual traditions
-- Polynesian long-distance voyagers introduced sweet potatoes from South America
-- Surging island populations built: stone fishponds (Hawai'i); massive administrative centers like Nan Madol (Pohnpei); stratified chiefdoms (ali'i nui); sacred marae temple platforms
+- Australian aboriginal peoples maintained [[nomadic foraging]] networks and localized spiritual traditions
+- Polynesian long-distance voyagers introduced [[sweet potatoes]] from South America
+- Surging island populations built: stone fishponds (Hawai'i); massive administrative centers like [[Nan Madol]] (Pohnpei); stratified chiefdoms (ali'i nui); sacred marae temple platforms
 
 ## MEDIEVAL EUROPE & BYZANTIUM
 
 ### The Byzantine Empire
 - Eastern Roman Empire survived as a centralized, urbanized powerhouse
-- Governed by an absolute emperor and professional bureaucracy
-- Justinian's legal code (Corpus iuris civilis)
-- Imperial themes granted land to free peasants in exchange for military service
-- Fueled silk manufacturing and Mediterranean trade
-- Ended by social decay, Crusader invasions, and Ottoman conquest (1453)
+- Governed by an absolute emperor and professional [[bureaucracy]]
+- [[Justinian]]'s legal code (Corpus iuris civilis)
+- Imperial [[themes]] granted land to free peasants in exchange for military service
+- Fueled [[silk]] manufacturing and Mediterranean trade
+- Ended by social decay, Crusader invasions, and [[Ottoman]] conquest (1453)
 
 ### Western Europe & Political Order
-- Developed decentralized feudal relationships after Carolingian fragmentation and Viking/Magyar invasions
-- German king Otto I crowned Holy Roman Emperor (962)
-- Papal conflicts over lay investiture kept the realm fragmented
-- Centralized regional monarchies formed in France (Capetian kings) and England (Norman conquest by William the Conqueror)
+- Developed decentralized [[feudal]] relationships after Carolingian fragmentation and Viking/Magyar invasions
+- German king [[Otto I]] crowned Holy Roman Emperor (962)
+- Papal conflicts over [[lay investiture]] kept the realm fragmented
+- Centralized regional monarchies formed in France ([[Capetian]] kings) and England (Norman conquest by William the Conqueror)
 
 ### Economic Contrast
-- Byzantium drew wealth from urban crafts and the bezant currency
-- Western Europe gradually built an agricultural recovery: heavy plows, horse collars, crop rotation
-- Expanded maritime trade (Norse and Italian networks)
+- Byzantium drew wealth from urban crafts and the [[bezant]] currency
+- Western Europe gradually built an agricultural recovery: [[heavy plows]], horse collars, crop rotation
+- Expanded maritime trade ([[Norse]] and Italian networks)
 
 ## SUB-SAHARAN AFRICA
 
 ### Social Structure & Faith
-- Bedrock of society: kin-based clan organization, age grades, communal land usage, domestic slavery
-- Indigenous religions focused on a creator god, local nature spirits, ancestor veneration, and diviners
+- Bedrock of society: kin-based clan organization, [[age grades]], communal land usage, domestic slavery
+- Indigenous religions focused on a creator god, local nature spirits, [[ancestor veneration]], and diviners
 
 ### Christianity & Islam
-- Early Christianity flourished in the highland kingdom of Axum
-- Later Zagwe's rock-carved churches at Lalibela
-- Trans-Saharan camel caravans linked West Africa's gold trade with North African salt
-- Gave rise to wealthy Islamic empires like Ghana (Koumbi-Saleh) and Mali
-- Mali founded by Sundiata; famed for Mansa Musa's Cairo hajj
+- Early Christianity flourished in the highland kingdom of [[Axum]]
+- Later Zagwe's rock-carved churches at [[Lalibela]]
+- Trans-Saharan camel caravans linked West Africa's [[gold]] trade with North African salt
+- Gave rise to wealthy Islamic empires like Ghana ([[Koumbi-Saleh]]) and Mali
+- Mali founded by [[Sundiata]]; famed for Mansa Musa's Cairo hajj
 
 ### East African Coast
-- Swahili city-states (Kilwa, Mogadishu) exported interior gold, ivory, and slaves across the Indian Ocean
-- Received Asian luxury goods in exchange
-- Great Zimbabwe controlled interior trade routes
+- Swahili city-states ([[Kilwa]], Mogadishu) exported interior gold, ivory, and slaves across the Indian Ocean
+- Received [[Asian luxury goods]] in exchange
+- [[Great Zimbabwe]] controlled interior trade routes
 
 ## THE MONGOL EMPIRES
 
 ### Chinggis Khan
-- Undermined traditional tribal loyalties by organizing a disciplined, merit-based military
-- Used horse archery and psychological warfare
-- Built a vast empire across northern China and Khwarazm Persia
+- Undermined traditional tribal loyalties by organizing a disciplined, [[merit-based]] military
+- Used [[horse archery]] and psychological warfare
+- Built a vast empire across northern China and [[Khwarazm]] Persia
 
 ### The Four Khanates
 - Empire split into four regions after Chinggis Khan's death
-- Khanate of the Great Khan / Yuan Dynasty in China (ruled by Khubilai Khan)
-- Khanate of Chagatai in Central Asia
-- Ilkhanate of Persia (rulers converted to Islam)
-- Golden Horde in Russia
+- Khanate of the Great Khan / [[Yuan Dynasty]] in China (ruled by Khubilai Khan)
+- Khanate of [[Chagatai]] in Central Asia
+- [[Ilkhanate]] of Persia (rulers converted to Islam)
+- [[Golden Horde]] in Russia
 
 ### Eurasian Integration & Decline
-- Pax Mongolica secured overland Silk Roads
-- Operated a rapid relay courier system (yam)
-- Forcibly resettled skilled artisans and administrators across Eurasia
-- Collapse in the 14th century caused by financial mismanagement, paper currency failure, factional fighting, and the spread of the Black Death
+- [[Pax Mongolica]] secured overland Silk Roads
+- Operated a rapid relay courier system ([[yam]])
+- Forcibly resettled skilled [[artisans]] and administrators across Eurasia
+- Collapse in the 14th century caused by financial mismanagement, paper currency failure, factional fighting, and the spread of the [[Black Death]]
 
 # Timeline | timeline
 
@@ -1359,4 +1361,185 @@ const NOTES = `
 - Spirit mediums supported rulers
 - Massive stone walls displayed power
 - Control of gold trade; cattle as wealth
+
+# Centralization | centralization
+
+## EAST ASIA
+
+### Tang Dynasty | Centralized → Decentralized
+- Why centralized: bureaucracy, civil service exams, equal-field land system
+- Why it changed: after the An Lushan Rebellion, military governors (jiedushi) gained power
+- Influence: efficient tax collection and Silk Road control early on
+- Influence: decentralization later led to warlords and collapse
+
+### Song Dynasty | Centralized
+- Why: large civilian bureaucracy chosen by exam; emperor controlled the military
+- Influence: stability, few coups, economic boom
+- Influence: civilian control weakened the army → lost the north to the Jurchen
+
+### Yuan Dynasty | Centralized
+- Why: Mongol rulers at the top; provinces run by appointed officials; foreigners as administrators
+- Influence: relay system (yam) and control of trade
+- Influence: excluding Chinese scholars caused resentment; succession fights weakened it
+
+### Khanate of the Great Khan | Centralized → Decentralized
+- Why centralized: army organized by loyalty to Genghis, not clan
+- Why it changed: empire divided among descendants after his death
+- Influence: rapid conquest under unified command
+- Influence: split into four independent khanates
+
+## DAR AL-ISLAM
+
+### Umayyad Caliphate | Centralized
+- Why: hereditary caliph in Damascus; appointed governors; Arabic administration
+- Influence: rapid expansion; unified language and coinage
+- Influence: Arab favoritism caused resentment → Abbasid revolution
+
+### Abbasid Caliphate | Centralized → Decentralized
+- Why centralized: Persian-style bureaucracy run by a vizier from Baghdad
+- Why it changed: too large; provinces broke away; Turkic soldiers took power
+- Influence: Islamic Golden Age at its peak
+- Influence: fragmentation; caliph became a figurehead
+
+### Rajput Kingdoms | Decentralized
+- Why: many separate clans; land granted to warriors for military service
+- Influence: strong local warrior culture
+- Influence: couldn't unite against invaders → defeated at Tarain
+
+### Chola Kingdom | Centralized with local self-government
+- Why: powerful king, but village assemblies handled local affairs
+- Influence: efficient local administration and tax collection
+- Influence: strong navy and trade control
+
+### Delhi Sultanate | Centralized in theory, decentralized in practice
+- Why: sultan held power, but iqta land grants gave officers control of provinces
+- Influence: strong military; repelled the Mongols
+- Influence: distant governors broke away (Bengal, Bahmani, Vijayanagara)
+
+### Ilkhanate of Persia | Centralized → Decentralized
+- Why centralized: Mongol rulers with Persian bureaucrats; Ghazan's tax reforms
+- Why it changed: regional commanders grew powerful
+- Influence: split apart after Abu Sa'id died with no heir
+
+### Vijayanagara Kingdom | Partly decentralized
+- Why: nayaka system gave military governors land in exchange for troops
+- Influence: large army to fight the Deccan sultanates
+- Influence: nayakas became independent after Talikota
+
+## MESOAMERICA AND NA
+
+### Toltec Empire (Tula) | Centralized (limited evidence)
+- Why: militaristic state based at Tula; tribute from neighbors
+- Influence: served as a model for later Aztec rule
+
+### Aztec Empire | Decentralized (indirect rule)
+- Why: conquered city-states kept their rulers but paid tribute; Triple Alliance shared power
+- Influence: low cost, allowing rapid expansion
+- Influence: resentful subjects allied with the Spanish
+
+### Ancestral Puebloans | Decentralized
+- Why: network of communities; Chaco a ritual center, not a ruling capital
+- Influence: flexibility allowed migration during droughts
+- Influence: no unified response to environmental crisis
+
+### Iroquois Confederacy | Decentralized (confederacy)
+- Why: each nation kept independence; Grand Council made decisions by consensus
+- Influence: peace among nations and strong diplomacy
+- Influence: couldn't agree during the American Revolution → split
+
+### Cahokia | Centralized chiefdom
+- Why: elites controlled the mound center, religion, and trade
+- Influence: huge public works (Monks Mound)
+- Influence: dependent on elites; declined as resources ran low
+
+## SOUTH AMERICA
+
+### Kingdom of Chucuito | Mixed
+- Why: two paramount lords shared rule; kin groups (ayllus) organized local life
+- Influence: managed colonies at different altitudes
+- Influence: existing organization made Inca absorption easier
+
+### Kingdom of Chimú | Centralized
+- Why: king in Chan Chan controlled irrigation and artisans; regional administrative centers
+- Influence: large irrigation projects
+- Influence: when the Inca took the capital and water supply, the kingdom fell
+
+### Inca Empire | Highly centralized
+- Why: Sapa Inca in Cusco; quipus, roads, mit'a, appointed governors
+- Influence: efficient control of 10+ million people
+- Influence: depended on the emperor → civil war and Atahualpa's capture crippled it
+
+### Tu'i Tonga Empire (Polynesia) | Centralized → Decentralized
+- Why centralized: divine king received tribute
+- Why it changed: power handed to secular rulers after assassinations
+- Influence: maritime tribute network
+- Influence: later civil wars
+
+## EUROPE
+
+### Byzantine Empire | Centralized
+- Why: emperor, bureaucracy, Justinian's Code; themes run by appointed governors
+- Influence: survived about 1,000 years after western Rome fell
+- Influence: palace intrigues and civil wars weakened it
+
+### France | Decentralized → Centralized
+- Why decentralized: feudal nobles held most power
+- Why it changed: Capetians expanded royal land, used royal officials (baillis), taxes, armies
+- Influence: became a strong monarchy by the end of the Hundred Years' War
+
+### Italian City-States | Decentralized
+- Why: many independent self-governing city-states
+- Influence: competition fueled trade, banking, and art (Renaissance)
+- Influence: vulnerable to foreign invasion (Italian Wars)
+
+### Spain | Decentralized → Centralized
+- Why decentralized: separate Christian kingdoms
+- Why it changed: Ferdinand and Isabella united crowns, limited nobles, used the Inquisition
+- Influence: completed the Reconquista; funded exploration
+
+### Holy Roman Empire | Decentralized
+- Why: elected emperor; powerful princes; conflict with the papacy
+- Influence: never unified like France or England
+- Influence: Germany not unified until 1871
+
+## AFRICA
+
+### Swahili City-States | Decentralized
+- Why: independent city-states, each with its own ruler
+- Influence: competition and flexible trade
+- Influence: couldn't unite against the Portuguese
+
+### Zagwe Dynasty | Moderately centralized
+- Why: Christian monarchy with church support; regional nobles still powerful
+- Influence: able to fund projects like the Lalibela churches
+- Influence: contested legitimacy made it vulnerable
+
+### Solomonic Dynasty | Centralized (mobile court)
+- Why: emperor moved the royal camp to control provinces; church support
+- Influence: survived for centuries
+- Influence: during the "Era of Princes," nobles took over → decentralized
+
+### Empire of Mali | Centralized core, decentralized provinces
+- Why: mansa controlled gold trade; provinces run by governors or tributary local rulers
+- Influence: managed a huge empire under strong rulers
+- Influence: provinces broke away under weak rulers (Songhai)
+
+### Hausa City-States | Decentralized
+- Why: independent city-states
+- Influence: competition for trade
+- Influence: vulnerable to the Fulani jihad
+
+### Kingdom of Ghana | Centralized core with vassals
+- Why: king controlled gold and taxed trade; vassal kings paid tribute
+- Influence: great wealth
+- Influence: vassals broke away when Ghana weakened
+
+### Kilwa | Centralized city-state
+- Why: sultan ruled the city; nearby towns paid tribute
+- Influence: control of the Sofala gold trade
+
+### Great Zimbabwe | Centralized
+- Why: capital controlled the gold trade; smaller stone enclosures across the region
+- Influence: monumental building projects
+- Influence: overuse of resources at the capital contributed to collapse
 `;

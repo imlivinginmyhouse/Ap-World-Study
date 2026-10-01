@@ -4,10 +4,9 @@
   /* ================= Section settings ================= */
   const CFG = {
     review: {
-      blurb: "Big-picture topics for each region",
-      fr: "Explain what you know about this topic.",
-      mcA: "Which of these belongs to this topic?",
-      mcB: "Which topic do these notes describe?",
+      blurb: "Fill in the missing key term",
+      fr: "Type the missing term.",
+      mcA: "Which term fills the blank?",
       what: "topic"
     },
     timeline: {
@@ -42,6 +41,14 @@
       fr: "How did belief systems shape this state?",
       mcA: "Which of these is true about its belief systems?",
       mcB: "Whose belief systems do these notes describe?",
+      what: "state"
+    },
+    centralization: {
+      blurb: "How power was organized and why it mattered",
+      fr: "Was this state centralized or decentralized? Explain why, and how that affected it.",
+      mcA: "Which of these is true about how its power was organized?",
+      mcB: "Whose political organization do these notes describe?",
+      mcType: "How was political power organized in this state?",
       what: "state"
     },
     legitimacy: {
@@ -86,7 +93,7 @@
       if (word === "&") return word;
       if (word === "AND" || (word === "OF" && i > 0)) return word.toLowerCase();
       if (word.length <= 2) return word;
-      return word.split("-").map((p) => p.charAt(0) + p.slice(1).toLowerCase()).join("-");
+      return word.split("-").map((p) => (p === "AL" ? "al" : p.charAt(0) + p.slice(1).toLowerCase())).join("-");
     }).join(" ");
   }
 
@@ -112,6 +119,120 @@
     return out;
   }
 
+  /* ================= Motion ================= */
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const blurNode = document.getElementById("mbNode");
+  const easeIn = (t) => t * t * t;
+  const easeOut = (t) => 1 - Math.pow(1 - t, 4);
+
+  // Slides an element horizontally with real directional motion blur based on its speed.
+  function motionSlide(el, fromX, toX, fromO, toO, dur, ease) {
+    return new Promise((resolve) => {
+      if (reduceMotion || !el || !blurNode) { resolve(); return; }
+      let start = null;
+      let lastX = fromX;
+      el.style.filter = "url(#motion-blur)";
+      el.style.transform = `translateX(${fromX}px)`;
+      el.style.opacity = fromO;
+      const step = (ts) => {
+        if (start === null) start = ts;
+        const p = Math.min(1, (ts - start) / dur);
+        const e = ease(p);
+        const x = fromX + (toX - fromX) * e;
+        const speed = Math.abs(x - lastX);
+        lastX = x;
+        const blur = Math.min(40, speed * 1.4);
+        blurNode.setAttribute("stdDeviation", `${blur.toFixed(1)} 0`);
+        const stretch = 1 + Math.min(0.06, speed / 900);
+        el.style.transform = `translateX(${x}px) scaleX(${stretch})`;
+        el.style.opacity = fromO + (toO - fromO) * e;
+        if (p < 1) requestAnimationFrame(step);
+        else {
+          blurNode.setAttribute("stdDeviation", "0 0");
+          el.style.filter = "";
+          el.style.transform = "";
+          el.style.opacity = "";
+          resolve();
+        }
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  function countUp(el, to, dur = 900) {
+    if (!el) return;
+    if (reduceMotion) { el.textContent = to; return; }
+    let start = null;
+    const step = (ts) => {
+      if (start === null) start = ts;
+      const p = Math.min(1, (ts - start) / dur);
+      el.textContent = Math.round(to * easeOut(p));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  // Letters resolve from random glyphs, left to right.
+  function decodeText(el, dur = 1100) {
+    if (!el || reduceMotion) return;
+    const final = el.textContent;
+    const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&<>/";
+    let start = null;
+    const step = (ts) => {
+      if (start === null) start = ts;
+      const p = Math.min(1, (ts - start) / dur);
+      const solved = Math.floor(final.length * p);
+      let out = "";
+      for (let i = 0; i < final.length; i++) {
+        const ch = final[i];
+        out += i < solved || ch === " " ? ch : glyphs[Math.floor(Math.random() * glyphs.length)];
+      }
+      el.textContent = out;
+      if (p < 1) requestAnimationFrame(step); else el.textContent = final;
+    };
+    requestAnimationFrame(step);
+  }
+
+  // Cursor spotlight on the background
+  if (!reduceMotion) {
+    const spot = document.querySelector(".bg-spot");
+    window.addEventListener("pointermove", (e) => {
+      if (!spot) return;
+      spot.style.setProperty("--cx", `${e.clientX}px`);
+      spot.style.setProperty("--cy", `${e.clientY}px`);
+    }, { passive: true });
+  }
+
+  function wireTilt(root) {
+    if (reduceMotion || !window.matchMedia("(hover: hover)").matches) return;
+    root.querySelectorAll(".deck").forEach((el) => {
+      el.addEventListener("pointermove", (e) => {
+        const r = el.getBoundingClientRect();
+        const px = (e.clientX - r.left) / r.width;
+        const py = (e.clientY - r.top) / r.height;
+        el.style.setProperty("--ry", `${(px - 0.5) * 14}deg`);
+        el.style.setProperty("--rx", `${(0.5 - py) * 12}deg`);
+        el.style.setProperty("--mx", `${px * 100}%`);
+        el.style.setProperty("--my", `${py * 100}%`);
+      });
+      el.addEventListener("pointerleave", () => {
+        el.style.setProperty("--rx", "0deg");
+        el.style.setProperty("--ry", "0deg");
+      });
+    });
+  }
+
+  const stripMarks = (s) => s.replace(/\[\[(.+?)\]\]/g, "$1");
+
+  // Centralization labels grouped into answer choices
+  const ORG_TYPES = ["Centralized", "Decentralized", "Centralized → Decentralized", "Decentralized → Centralized", "Mixed (partly centralized)"];
+  function orgType(tag) {
+    if (tag.includes("→")) return /^\s*decentralized/i.test(tag) ? ORG_TYPES[3] : ORG_TYPES[2];
+    if (/mixed|partly|moderately|in theory|core|with local/i.test(tag)) return ORG_TYPES[4];
+    if (/decentralized/i.test(tag)) return ORG_TYPES[1];
+    return ORG_TYPES[0];
+  }
+
   /* ================= Parse notes ================= */
   function parseNotes(raw) {
     const sections = [];
@@ -129,7 +250,8 @@
         sec.regions.push(reg);
         item = null;
       } else if (t.startsWith("### ") && reg) {
-        item = { title: t.slice(4).trim(), bullets: [] };
+        const [title, tag] = t.slice(4).split(" | ").map((x) => x.trim());
+        item = { title, tag: tag || "", bullets: [] };
         reg.items.push(item);
       } else if (t.startsWith("- ") && sec) {
         const text = t.slice(2).trim();
@@ -152,13 +274,38 @@
     sec.regions.forEach((reg) => {
       reg.items.forEach((it, idx) => {
         if (!it.bullets.length) return;
+        const plain = it.bullets.map(stripMarks);
+        if (sec.key === "review") {
+          // One fill-in-the-blank card per marked note
+          it.bullets.forEach((b, bi) => {
+            const m = b.match(/\[\[(.+?)\]\]/);
+            if (!m) return;
+            const card = {
+              id: `${sec.key}::${reg.name}::${it.title}::${idx}::${bi}`,
+              secKey: sec.key,
+              secName: sec.name,
+              region: reg.name,
+              title: it.title,
+              bullets: [stripMarks(b)],
+              cloze: {
+                before: stripMarks(b.slice(0, m.index)),
+                answer: m[1],
+                after: stripMarks(b.slice(m.index + m[0].length))
+              }
+            };
+            CARDS_BY_SECTION[sec.key].push(card);
+            ALL_CARDS.push(card);
+          });
+          return;
+        }
         const card = {
           id: `${sec.key}::${reg.name}::${it.title}::${idx}`,
           secKey: sec.key,
           secName: sec.name,
           region: reg.name,
           title: it.title,
-          bullets: it.bullets
+          tag: it.tag,
+          bullets: plain
         };
         CARDS_BY_SECTION[sec.key].push(card);
         ALL_CARDS.push(card);
@@ -272,26 +419,44 @@
       </div>`;
     app.innerHTML = `
       <section class="home-head">
-        <h1>Pick a deck and start studying.</h1>
+        <h1 id="heroTitle">Pick a deck. Start studying.</h1>
         <p>Every card comes from your AP World binder. Choose in-order or shuffled, then answer by multiple choice or in your own words.</p>
+        <div class="stats">
+          <span><b data-count="${ALL_CARDS.length}">0</b>cards</span>
+          <span><b data-count="${DECKS.length - 1}">0</b>decks</span>
+          <span><b data-count="${new Set(ALL_CARDS.filter((c) => c.secKey !== "review").map((c) => c.region)).size}">0</b>regions</span>
+        </div>
       </section>
       ${note}
       <div class="deck-grid">
-        ${DECKS.map((d) => `
-          <button class="deck${d.mixed ? " mixed" : ""}" type="button" data-deck="${esc(d.key)}">
+        ${DECKS.map((d, i) => {
+          const counts = {};
+          d.cards.forEach((c) => { counts[c.region] = (counts[c.region] || 0) + 1; });
+          const bar = Object.entries(counts).map(([r, n]) => `<i style="flex:${n}" title="${esc(r)}: ${n}"></i>`).join("");
+          return `
+          <button class="deck${d.mixed ? " mixed" : ""}" type="button" data-deck="${esc(d.key)}" style="--i:${i}">
             <span class="deck-face">
+              <span class="deck-top"><span class="deck-count-big">${d.cards.length}</span><span class="deck-unit">cards</span></span>
               <span class="deck-title">${esc(d.name)}</span>
-              <span class="deck-lines">
-                <span class="deck-blurb">${esc(d.blurb)}</span>
-                <span class="deck-count">${d.cards.length} cards</span>
-              </span>
+              <span class="deck-blurb">${esc(d.blurb)}</span>
+              <span class="region-bar" aria-hidden="true">${bar}</span>
+              <span class="shine" aria-hidden="true"></span>
             </span>
-          </button>`).join("")}
+          </button>`;
+        }).join("")}
       </div>`;
     app.querySelectorAll("[data-deck]").forEach((b) =>
       b.addEventListener("click", () => renderSetup(DECKS.find((d) => d.key === b.dataset.deck))));
     const s = app.querySelector('[data-action="settings"]');
     if (s) s.addEventListener("click", openSettings);
+    wireTilt(app);
+    if (!state.introDone) {
+      state.introDone = true;
+      decodeText($("#heroTitle"));
+      app.querySelectorAll("[data-count]").forEach((el) => countUp(el, Number(el.dataset.count), 1200));
+    } else {
+      app.querySelectorAll("[data-count]").forEach((el) => { el.textContent = el.dataset.count; });
+    }
     focusMain();
   }
 
@@ -371,7 +536,7 @@
     renderCard();
   }
 
-  function renderCard() {
+  function renderCard(enter = false) {
     const s = state.session;
     if (s.idx >= s.cards.length) return renderSummary();
     const card = s.cards[s.idx];
@@ -401,6 +566,12 @@
 
     if (s.mode === "mc") renderMC(); else renderFR();
     focusMain();
+    if (enter) {
+      const sheet = app.querySelector(".sheet");
+      const w = Math.min(window.innerWidth * 0.55, 620);
+      state.animating = true;
+      motionSlide(sheet, w, 0, 0, 1, 520, easeOut).then(() => { state.animating = false; });
+    }
   }
 
   function recordAndNext(result) {
@@ -408,9 +579,15 @@
     s.results.push(result);
   }
 
-  function nextCard() {
+  async function nextCard() {
+    if (state.animating) return;
+    state.animating = true;
+    const sheet = app.querySelector(".sheet");
+    const w = Math.min(window.innerWidth * 0.55, 620);
+    await motionSlide(sheet, 0, -w, 1, 0, 300, easeIn);
+    state.animating = false;
     state.session.idx += 1;
-    renderCard();
+    renderCard(true);
   }
 
   /* ================= Multiple choice ================= */
@@ -449,6 +626,46 @@
         ...wrong.map((c) => ({ text: c.bullets[0], correct: false, explain: `These are the dates for ${c.title} (${c.region}). ${card.title} existed ${answer}.` }))
       ];
       return { kind: "fact", prompt: cfg.mcA, options: shuffle(options) };
+    }
+
+    if (card.cloze) {
+      const pool = shuffle((CARDS_BY_SECTION[card.secKey] || []).filter((c) => c.id !== card.id && c.cloze));
+      pool.sort((x, y) => (y.region === card.region) - (x.region === card.region) || (y.title === card.title) - (x.title === card.title));
+      const used = new Set([card.cloze.answer.toLowerCase()]);
+      const wrong = [];
+      for (const c of pool) {
+        const t = c.cloze.answer.toLowerCase();
+        if (used.has(t)) continue;
+        used.add(t);
+        wrong.push(c);
+        if (wrong.length === 3) break;
+      }
+      const options = [
+        { text: card.cloze.answer, correct: true, explain: `Correct. Full note: ${card.bullets[0]}` },
+        ...wrong.map((c) => ({
+          text: c.cloze.answer,
+          correct: false,
+          explain: `This term belongs in a different note (${c.title}): ${c.bullets[0]}`
+        }))
+      ];
+      return { kind: "cloze", prompt: cfg.mcA, options: shuffle(options) };
+    }
+
+    if (card.tag && cfg.mcType && Math.random() < 0.4) {
+      const right = orgType(card.tag);
+      const peers = CARDS_BY_SECTION[card.secKey] || [];
+      const options = ORG_TYPES.map((t) => {
+        if (t === right) {
+          return { text: t, correct: true, explain: `Correct. Your notes say: ${card.tag}. ${card.bullets[0]}` };
+        }
+        const examples = shuffle(peers.filter((c) => c.tag && orgType(c.tag) === t)).slice(0, 2).map((c) => c.title);
+        return {
+          text: t,
+          correct: false,
+          explain: `Not this one. ${card.title} was ${card.tag.toLowerCase()}.${examples.length ? ` States in your notes that fit "${t}": ${examples.join(", ")}.` : ""}`
+        };
+      });
+      return { kind: "type", prompt: cfg.mcType, options };
     }
 
     const words = nameWords(card.title);
@@ -501,11 +718,12 @@
     body.innerHTML = `
       <p class="prompt">${esc(mc.prompt)}</p>
       ${mc.kind === "identify" ? `<ul class="clues">${mc.clues.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}
+      ${mc.kind === "cloze" ? clozeSentence(card) : ""}
       <ul class="options">
         ${mc.options.map((o, i) => `
           <li>
             <button class="option" type="button" data-i="${i}" aria-expanded="false">
-              <span class="letter" aria-hidden="true">${"ABCD"[i]}</span>
+              <span class="letter" aria-hidden="true">${"ABCDE"[i]}</span>
               <span class="option-text">${esc(o.text)}<span class="option-tag"></span></span>
               <span class="explain" hidden>${esc(o.explain)}</span>
             </button>
@@ -558,12 +776,21 @@
     $("#nextBtn").focus({ preventScroll: true });
   }
 
+  function clozeSentence(card, filled) {
+    const c = card.cloze;
+    const blank = filled === undefined
+      ? `<span class="blank" aria-label="blank">______</span>`
+      : `<span class="blank filled">${esc(filled)}</span>`;
+    return `<p class="cloze">${esc(c.before)}${blank}${esc(c.after)}</p>`;
+  }
+
   const isLast = () => state.session.idx >= state.session.cards.length - 1;
 
   function notesBlock(card) {
     return `
       <div class="notes-block">
         <h3>Your notes: ${esc(card.title)}</h3>
+        ${card.tag ? `<p class="org-tag">${esc(card.tag)}</p>` : ""}
         <ul>${card.bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>
       </div>`;
   }
@@ -574,6 +801,7 @@
     const { card } = s.current;
     const cfg = cfgFor(card.secKey);
     const body = $("#cardBody");
+    if (card.cloze) return renderClozeFR(card, cfg, body);
     body.innerHTML = `
       <label class="prompt" for="answer">${esc(cfg.fr)}</label>
       <textarea id="answer" class="answer-box" rows="6" placeholder="Write your answer in your own words..."></textarea>
@@ -597,13 +825,111 @@
       recordAndNext({ card, correct: false, score: 0 });
       $("#frAfter").innerHTML = `
         <div class="result">
-          <p class="verdict bad">Study this one</p>
+          <p class="verdict bad"><span>Study this one</span></p>
           ${notesBlock(card)}
           ${nextRow()}
         </div>`;
       wireNext();
     });
     setTimeout(() => ta.focus({ preventScroll: true }), 30);
+  }
+
+  /* ---- Fill in the blank (free response) ---- */
+  function renderClozeFR(card, cfg, body) {
+    const s = state.session;
+    body.innerHTML = `
+      <p class="prompt">${esc(cfg.fr)}</p>
+      ${clozeSentence(card)}
+      <label class="sr-only" for="clozeInput">Missing term</label>
+      <input id="clozeInput" class="answer-line" type="text" autocomplete="off" spellcheck="false" placeholder="Missing term">
+      <p class="answer-hint">Press Enter to check.</p>
+      <div class="row">
+        <button class="btn-primary" type="button" id="checkBtn">Check answer</button>
+        <button class="btn-plain" type="button" id="skipBtn">I don't know</button>
+      </div>
+      <div id="frAfter"></div>`;
+    const input = $("#clozeInput");
+    const finish = (typed) => {
+      if (s.current.answered) return;
+      s.current.answered = true;
+      input.disabled = true;
+      $("#checkBtn").disabled = true;
+      $("#skipBtn").disabled = true;
+      const res = typed === null ? { level: "skip", score: 0 } : gradeCloze(typed, card.cloze.answer);
+      s.current.result = { card, correct: res.score >= 70, score: res.score };
+      recordAndNext(s.current.result);
+      const label = { exact: "Correct", close: "Correct, check spelling", partial: "Partly right", wrong: "Not quite", skip: "Study this one" }[res.level];
+      const cls = res.score >= 70 ? "good" : res.score >= 40 ? "mid" : "bad";
+      $("#frAfter").innerHTML = `
+        <div class="result">
+          <div class="verdict-wrap ${cls}">
+            <p class="verdict ${cls}"><span class="num"><span id="scoreNum">0</span>%</span><span>${label}</span></p>
+            <div class="meter"><span id="scoreMeter"></span></div>
+          </div>
+          ${typed !== null ? `<p class="grader-note">You wrote: ${esc(typed)}</p>` : ""}
+          <div class="feedback-block fb-right">
+            <h3>Answer: ${esc(card.cloze.answer)}</h3>
+            ${clozeSentence(card, card.cloze.answer)}
+          </div>
+          <div class="next-row">
+            <button class="btn-primary" type="button" id="nextBtn">${isLast() ? "See results" : "Next card"}</button>
+            ${typed !== null ? `<button class="btn-plain" type="button" id="overrideBtn">${res.score >= 70 ? "Count it as wrong" : "Count it as right"}</button>` : ""}
+            <span class="kbd-hint">Enter for next</span>
+          </div>
+        </div>`;
+      const ob = $("#overrideBtn");
+      if (ob) ob.addEventListener("click", () => {
+        const r = s.current.result;
+        r.correct = !r.correct;
+        r.score = r.correct ? 100 : 0;
+        ob.textContent = r.correct ? "Counted as right" : "Counted as wrong";
+        ob.disabled = true;
+      });
+      countUp($("#scoreNum"), res.score, 600);
+      requestAnimationFrame(() => requestAnimationFrame(() => { $("#scoreMeter").style.width = `${res.score}%`; }));
+      wireNext();
+    };
+    const check = () => {
+      const v = input.value.trim();
+      if (!v) { $("#frAfter").innerHTML = `<p class="error">Type the missing term first, or choose "I don't know".</p>`; input.focus(); return; }
+      finish(v);
+    };
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); check(); } });
+    $("#checkBtn").addEventListener("click", check);
+    $("#skipBtn").addEventListener("click", () => finish(null));
+    setTimeout(() => input.focus({ preventScroll: true }), 30);
+  }
+
+  const normText = (s) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  function lev(a, b) {
+    const dp = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      let prev = dp[0];
+      dp[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        const tmp = dp[j];
+        dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+        prev = tmp;
+      }
+    }
+    return dp[b.length];
+  }
+  function gradeCloze(typed, target) {
+    const a = normText(typed);
+    const alts = [target, ...target.split("/")].map(normText).filter(Boolean);
+    const aw = a.split(" ");
+    const sameWord = (x, w) => x === w || (w.length >= 5 && lev(x, w) <= 1);
+    for (const t of alts) {
+      if (a === t) return { level: "exact", score: 100 };
+      const tw = t.split(" ").filter((w) => w.length > 2 && w !== "and" && w !== "the");
+      if (tw.length && tw.every((w) => aw.some((x) => sameWord(x, w)))) return { level: "exact", score: 100 };
+      const tol = /\d/.test(t) ? 0 : t.length >= 8 ? 2 : t.length >= 4 ? 1 : 0;
+      if (lev(a, t) <= tol) return { level: "close", score: 100 };
+    }
+    const keyWords = normText(target).split(" ").filter((w) => w.length > 2 && w !== "and" && w !== "the");
+    if (keyWords.length > 1 && keyWords.some((w) => aw.some((x) => sameWord(x, w)))) return { level: "partial", score: 50 };
+    return { level: "wrong", score: 0 };
   }
 
   function nextRow() {
@@ -638,7 +964,7 @@
     let grade = null;
     let errorMsg = "";
     if (aiReady()) {
-      after.innerHTML = `<div class="checking"><span class="pencil" aria-hidden="true"></span><span>Checking your answer against your notes...</span></div>`;
+      after.innerHTML = `<div class="checking"><span class="scanner" aria-hidden="true"></span><span>Checking your answer against your notes...</span></div>`;
       try {
         grade = await aiGrade(card, answer);
         grade.source = "ai";
@@ -672,7 +998,10 @@
     $("#frAfter").innerHTML = `
       ${errorMsg ? `<p class="error">${esc(errorMsg)}</p>` : ""}
       <div class="result">
-        <p class="verdict ${cls}">${label}: ${g.score}%</p>
+        <div class="verdict-wrap ${cls}">
+          <p class="verdict ${cls}"><span class="num"><span id="scoreNum">0</span>%</span><span>${label}</span></p>
+          <div class="meter"><span id="scoreMeter"></span></div>
+        </div>
         <p class="grader-note">${g.source === "ai"
           ? "Graded by AI against your notes."
           : "Checked by keyword matching. It can tell which notes you covered, but not whether a fact is wrong. Turn on AI grading for that."}</p>
@@ -694,6 +1023,8 @@
       $("#overrideBtn").textContent = r.correct ? "Counted as right" : "Counted as wrong";
       $("#overrideBtn").disabled = true;
     });
+    countUp($("#scoreNum"), g.score);
+    requestAnimationFrame(() => requestAnimationFrame(() => { $("#scoreMeter").style.width = `${g.score}%`; }));
     wireNext();
   }
 
@@ -717,7 +1048,7 @@
     const ansStems = new Set(keywords(answer).map(stem));
     const titleStems = new Set(keywords(card.title).map(stem));
     const right = [], missed = [];
-    card.bullets.forEach((b) => {
+    (card.tag ? [card.tag, ...card.bullets] : card.bullets).forEach((b) => {
       const kws = keywords(b);
       if (!kws.length) return;
       const hits = kws.filter((k) => ansStems.has(stem(k))).length;
@@ -777,6 +1108,7 @@
       `Question: ${cfg.fr}`,
       "",
       "Reference notes:",
+      ...(card.tag ? [`- Organization: ${card.tag}`] : []),
       ...card.bullets.map((b) => `- ${b}`),
       "",
       "Student answer:",
@@ -890,7 +1222,7 @@
     const s = state.session;
     if (!s || !s.current) return;
     const inText = e.target && (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT");
-    if (s.mode === "mc" && !s.current.answered && !inText && /^[1-4]$/.test(e.key)) {
+    if (s.mode === "mc" && !s.current.answered && !inText && /^[1-5]$/.test(e.key)) {
       const i = Number(e.key) - 1;
       if (s.current.mc.options[i]) { e.preventDefault(); chooseMC(i); }
       return;

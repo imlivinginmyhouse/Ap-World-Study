@@ -6,10 +6,23 @@
   <title>AP World Flashcards</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#000000">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div class="bg" aria-hidden="true">
+    <div class="bg-glow g1"></div>
+    <div class="bg-glow g2"></div>
+    <div class="bg-grid"></div>
+    <div class="bg-spot"></div>
+    <div class="bg-scan"></div>
+  </div>
+  <svg class="fx-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <filter id="motion-blur" x="-30%" y="-10%" width="160%" height="120%" color-interpolation-filters="sRGB">
+      <feGaussianBlur id="mbNode" in="SourceGraphic" stdDeviation="0 0"/>
+    </filter>
+  </svg>
   <header class="topbar">
     <button class="brand" id="homeBtn" type="button">AP World flashcards</button>
     <button class="topbar-btn" id="settingsBtn" type="button">
